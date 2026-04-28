@@ -246,7 +246,27 @@
             border-radius: 15px;
             text-align: center;
             max-width: 400px;
+            position: relative;
+            width: 95%;
         }
+
+        .form-modal-content {
+            max-width: 700px;
+            text-align: left;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #94a3b8;
+            line-height: 1;
+        }
+        .close-btn:hover { color: #1e293b; }
 
         .modal-icon-wrap {
             font-size: 50px;
@@ -444,7 +464,7 @@
             <div class="icon-box"><span style="font-weight:800;font-size:17px;font-style:italic;">b</span></div>
             <div class="brand-text">
                 <strong>Sistem Manajemen Blog (CMS)</strong>
-                <span>Blog Keren</span>
+                <span>Blog Artikel</span>
             </div>
         </div>
     </div>
@@ -486,6 +506,14 @@
                 <button class="btn btn-batal" onclick="tutupModal()">Batal</button>
                 <button class="btn btn-hapus" onclick="konfirmasiHapus()">Ya, Hapus</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL FORM -->
+    <div id="formModal" class="modal">
+        <div class="modal-content form-modal-content">
+            <span class="close-btn" onclick="tutupFormModal()">&times;</span>
+            <div id="formModalBody"></div>
         </div>
     </div>
 
@@ -551,6 +579,16 @@
             hapusType = null;
         }
 
+        function bukaFormModal(html) {
+            document.getElementById('formModalBody').innerHTML = html;
+            document.getElementById('formModal').classList.add('show');
+        }
+
+        function tutupFormModal() {
+            document.getElementById('formModal').classList.remove('show');
+            document.getElementById('formModalBody').innerHTML = '';
+        }
+
         async function konfirmasiHapus() {
             if (hapusType === 'penulis') await hapusPenulis(hapusID);
             if (hapusType === 'kategori') await hapusKategori(hapusID);
@@ -560,6 +598,7 @@
 
         window.onclick = e => {
             if (e.target === document.getElementById('hapusModal')) tutupModal();
+            if (e.target === document.getElementById('formModal')) tutupFormModal();
         };
 
         /* ── HELPER BADGE ── */
@@ -650,9 +689,9 @@
         }
 
         function formTambahPenulis() {
-            document.getElementById('konten-utama').innerHTML = `
-        <div class="form-box">
-            <h2>Tambah Penulis</h2>
+            const html = `
+        <div class="form-box" style="margin:0; max-width:100%;">
+            <h2 style="margin-top:0;">Tambah Penulis</h2>
             <form id="formPenulis" onsubmit="simpanPenulis(event)">
                 <div class="form-row-2">
                     <div class="form-group">
@@ -677,11 +716,12 @@
                     <input type="file" name="foto" accept="image/*">
                 </div>
                 <div class="form-buttons">
-                    <button type="button" class="btn btn-batal" onclick="muatPenulis()">Batal</button>
+                    <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                     <button type="submit" class="btn btn-simpan">Simpan Data</button>
                 </div>
             </form>
         </div>`;
+            bukaFormModal(html);
         }
         async function simpanPenulis(event) {
             event.preventDefault();
@@ -703,6 +743,7 @@
 
                 if (hasil.status === 'sukses') {
                     tampilNotif(hasil.pesan, 'sukses');
+                    tutupFormModal();
                     muatPenulis(); // Refresh tabel setelah simpan
                 } else {
                     tampilNotif("Gagal: " + hasil.pesan, 'error');
@@ -714,13 +755,11 @@
         }
 
         async function editPenulis(id) {
-            const main = document.getElementById('konten-utama');
-            main.innerHTML = `<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>`;
             const p = await fetch('ambil_satu_penulis.php?id=' + id).then(r => r.json());
 
-            main.innerHTML = `
-                <div class="form-box">
-                    <h2>Edit Penulis</h2>
+            const html = `
+                <div class="form-box" style="margin:0; max-width:100%;">
+                    <h2 style="margin-top:0;">Edit Penulis</h2>
                     <form id="formEditPenulis" onsubmit="updatePenulis(event)">
                         <input type="hidden" name="id" value="${p.id}">
                         <div class="form-row-2">
@@ -746,18 +785,19 @@
                             <input type="file" name="foto" accept="image/*">
                         </div>
                         <div class="form-buttons">
-                            <button type="button" class="btn btn-batal" onclick="muatPenulis()">Batal</button>
+                            <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                             <button type="submit" class="btn btn-simpan">Simpan Perubahan</button>
                         </div>
                     </form>
                 </div>`;
+            bukaFormModal(html);
         }
 
         async function updatePenulis(event) {
             event.preventDefault();
             const res = await fetch('update_penulis.php', { method: 'POST', body: new FormData(document.getElementById('formEditPenulis')) });
             const hasil = await res.json();
-            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); muatPenulis(); }
+            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); tutupFormModal(); muatPenulis(); }
             else tampilNotif("Gagal update: " + hasil.pesan, 'error');
         }
 
@@ -848,18 +888,15 @@
             }
         }
         async function formTambahArtikel() {
-            const main = document.getElementById('konten-utama');
-            main.innerHTML = `<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Menyiapkan form...</p></div>`;
-
             try {
                 const [penulis, kategori] = await Promise.all([
                     fetch('ambil_penulis.php').then(r => r.json()),
                     fetch('ambil_kategori.php').then(r => r.json())
                 ]);
 
-                main.innerHTML = `
-            <div class="form-box">
-                <h2>Tambah Artikel</h2>
+                const html = `
+            <div class="form-box" style="margin:0; max-width:100%;">
+                <h2 style="margin-top:0;">Tambah Artikel</h2>
                 <form id="formArtikel" onsubmit="simpanArtikel(event)">
                     <div class="form-group">
                         <label>Judul Artikel</label>
@@ -901,13 +938,14 @@
                     </div>
 
                     <div class="form-buttons">
-                        <button type="button" class="btn btn-batal" onclick="muatArtikel()">Batal</button>
+                        <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                         <button type="submit" class="btn btn-simpan">Simpan Artikel</button>
                     </div>
                 </form>
             </div>`;
+                bukaFormModal(html);
             } catch (e) {
-                main.innerHTML = `<div class="empty-state"><p>Gagal memuat referensi data.</p></div>`;
+                tampilNotif("Gagal memuat referensi data.", "error");
             }
         }
 
@@ -915,23 +953,20 @@
             event.preventDefault();
             const res = await fetch('simpan_artikel.php', { method: 'POST', body: new FormData(document.getElementById('formArtikel')) });
             const hasil = await res.json();
-            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); muatArtikel(); }
+            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); tutupFormModal(); muatArtikel(); }
             else tampilNotif("Gagal simpan artikel: " + hasil.pesan, 'error');
         }
 
         async function editArtikel(id) {
-            const main = document.getElementById('konten-utama');
-            main.innerHTML = `<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>`;
-
             const [a, penulis, kategori] = await Promise.all([
                 fetch('ambil_satu_artikel.php?id=' + id).then(r => r.json()),
                 fetch('ambil_penulis.php').then(r => r.json()),
                 fetch('ambil_kategori.php').then(r => r.json())
             ]);
 
-            main.innerHTML = `
-                <div class="form-box">
-                    <h2>Edit Artikel</h2>
+            const html = `
+                <div class="form-box" style="margin:0; max-width:100%;">
+                    <h2 style="margin-top:0;">Edit Artikel</h2>
                     <form id="formEditArtikel" onsubmit="updateArtikel(event)">
                         <input type="hidden" name="id" value="${a.id}">
                         <div class="form-group">
@@ -965,18 +1000,19 @@
                             <p style="margin: 0; color: #475569; font-weight: 500;">${formatTanggal(a.hari_tanggal)}</p>
                         </div>
                         <div class="form-buttons">
-                            <button type="button" class="btn btn-batal" onclick="muatArtikel()">Batal</button>
+                            <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                             <button type="submit" class="btn btn-simpan">Simpan Perubahan</button>
                         </div>
                     </form>
                 </div>`;
+            bukaFormModal(html);
         }
 
         async function updateArtikel(event) {
             event.preventDefault();
             const res = await fetch('update_artikel.php', { method: 'POST', body: new FormData(document.getElementById('formEditArtikel')) });
             const hasil = await res.json();
-            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); muatArtikel(); }
+            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); tutupFormModal(); muatArtikel(); }
             else tampilNotif("Gagal update: " + hasil.pesan, 'error');
         }
 
@@ -1031,9 +1067,9 @@
         }
 
         function formTambahKategori() {
-            document.getElementById('konten-utama').innerHTML = `
-                <div class="form-box">
-                    <h2>Tambah Kategori</h2>
+            const html = `
+                <div class="form-box" style="margin:0; max-width:100%;">
+                    <h2 style="margin-top:0;">Tambah Kategori</h2>
                     <form id="formKategori" onsubmit="simpanKategori(event)">
                         <div class="form-group">
                             <label>Nama Kategori</label>
@@ -1044,11 +1080,12 @@
                             <textarea name="keterangan" placeholder="Deskripsi kategori..."></textarea>
                         </div>
                         <div class="form-buttons">
-                            <button type="button" class="btn btn-batal" onclick="muatKategori()">Batal</button>
+                            <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                             <button type="submit" class="btn btn-simpan">Simpan Data</button>
                         </div>
                     </form>
                 </div>`;
+            bukaFormModal(html);
         }
 
         async function simpanKategori(event) {
@@ -1056,19 +1093,17 @@
             try {
                 const res = await fetch('simpan_kategori.php', { method: 'POST', body: new FormData(document.getElementById('formKategori')) });
                 const hasil = await res.json();
-                if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); muatKategori(); }
+                if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); tutupFormModal(); muatKategori(); }
                 else tampilNotif("Gagal: " + hasil.pesan, 'error');
             } catch { tampilNotif("Terjadi kesalahan sistem!", 'error'); }
         }
 
         async function editKategori(id) {
-            const main = document.getElementById('konten-utama');
-            main.innerHTML = `<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>`;
             const k = await fetch('ambil_satu_kategori.php?id=' + id).then(r => r.json());
 
-            main.innerHTML = `
-                <div class="form-box">
-                    <h2>Edit Kategori</h2>
+            const html = `
+                <div class="form-box" style="margin:0; max-width:100%;">
+                    <h2 style="margin-top:0;">Edit Kategori</h2>
                     <form id="formEditKategori" onsubmit="updateKategori(event)">
                         <input type="hidden" name="id" value="${k.id}">
                         <div class="form-group">
@@ -1080,18 +1115,19 @@
                             <textarea name="keterangan">${k.keterangan || ''}</textarea>
                         </div>
                         <div class="form-buttons">
-                            <button type="button" class="btn btn-batal" onclick="muatKategori()">Batal</button>
+                            <button type="button" class="btn btn-batal" onclick="tutupFormModal()">Batal</button>
                             <button type="submit" class="btn btn-simpan">Simpan Perubahan</button>
                         </div>
                     </form>
                 </div>`;
+            bukaFormModal(html);
         }
 
         async function updateKategori(event) {
             event.preventDefault();
             const res = await fetch('update_kategori.php', { method: 'POST', body: new FormData(document.getElementById('formEditKategori')) });
             const hasil = await res.json();
-            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); muatKategori(); }
+            if (hasil.status === 'sukses') { tampilNotif(hasil.pesan, 'sukses'); tutupFormModal(); muatKategori(); }
             else tampilNotif("Gagal update: " + hasil.pesan, 'error');
         }
 
